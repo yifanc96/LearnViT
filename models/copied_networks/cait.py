@@ -12,10 +12,10 @@ import torch
 import torch.nn as nn
 from functools import partial
 # basic layers
-from .layers.patch_embed import PatchEmbed
-from .layers.drop import DropPath
-from .layers.mlp import Mlp
-from .layers.weight_init import trunc_normal_
+from ..copied_layers.patch_embed import PatchEmbed
+from ..copied_layers.drop import DropPath
+from ..copied_layers.mlp import Mlp
+from ..copied_layers.weight_init import trunc_normal_
 
 
 class ClassAttn(nn.Module):

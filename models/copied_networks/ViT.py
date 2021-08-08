@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 14 10:55:32 2021
-
-@author: yifanc
+modified from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 """
 
 import torch
@@ -12,14 +10,12 @@ import torch.nn.functional as F
 from functools import partial
 from collections import OrderedDict
 import math
-import logging
-# basic layers
-from .layers.patch_embed import PatchEmbed
-from .layers.drop import DropPath
-from .layers.mlp import Mlp
-from .layers.weight_init import trunc_normal_, lecun_normal_
 
-_logger = logging.getLogger(__name__)
+# basic layers
+from ..copied_layers.patch_embed import PatchEmbed
+from ..copied_layers.drop import DropPath
+from ..copied_layers.mlp import Mlp
+from ..copied_layers.weight_init import trunc_normal_, lecun_normal_
 
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
@@ -242,7 +238,7 @@ def _init_vit_weights(m, n: str = '', head_bias: float = 0., jax_impl: bool = Fa
 def resize_pos_embed(posemb, posemb_new, num_tokens=1, gs_new=()):
     # Rescale the grid of position embeddings when loading from state_dict. Adapted from
     # https://github.com/google-research/vision_transformer/blob/00883dd691c63a6830751563748663526e811cee/vit_jax/checkpoint.py#L224
-    _logger.info('Resized position embedding: %s to %s', posemb.shape, posemb_new.shape)
+    # _logger.info('Resized position embedding: %s to %s', posemb.shape, posemb_new.shape)
     ntok_new = posemb_new.shape[1]
     if num_tokens:
         posemb_tok, posemb_grid = posemb[:, :num_tokens], posemb[0, num_tokens:]
@@ -253,7 +249,7 @@ def resize_pos_embed(posemb, posemb_new, num_tokens=1, gs_new=()):
     if not len(gs_new):  # backwards compatibility
         gs_new = [int(math.sqrt(ntok_new))] * 2
     assert len(gs_new) >= 2
-    _logger.info('Position embedding grid-size from %s to %s', [gs_old, gs_old], gs_new)
+    # _logger.info('Position embedding grid-size from %s to %s', [gs_old, gs_old], gs_new)
     posemb_grid = posemb_grid.reshape(1, gs_old, gs_old, -1).permute(0, 3, 1, 2)
     posemb_grid = F.interpolate(posemb_grid, size=gs_new, mode='bilinear')
     posemb_grid = posemb_grid.permute(0, 2, 3, 1).reshape(1, gs_new[0] * gs_new[1], -1)
