@@ -54,7 +54,7 @@ if __name__ == '__main__':
     
     parser.add_argument("--device", type=str, default="cuda", choices=["cpu", "cuda"])
     
-    parser.add_argument("--dataset", type=str, default="cifar10", choices=["mnist","cifar10","cifar100","tinyimagenet"])
+    parser.add_argument("--dataset", type=str, default="mnist", choices=["mnist","cifar10","cifar100","tinyimagenet"])
     
     parser.add_argument("--model", type=str, default="cait", choices=["resnet","cait"])
     parser.add_argument("--model_patch_size", type=int, default=4)
