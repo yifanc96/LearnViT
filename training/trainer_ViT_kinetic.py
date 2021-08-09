@@ -19,7 +19,8 @@ def trainer(model, train_dataloader, device, optimizer, criterion, nepochs, nepo
             'epoch': epoch,
             'model': model,
             'train_acc': train_accs,
-            'test_acc': test_accs
+            'test_acc': test_accs,
+            'lambda': kinetic_lambda
             }, save_path) 
 
 
@@ -47,7 +48,7 @@ def train(model, dataloader, criterion, optimizer, device, kinetic_lambda = 0.0)
         target = target.to(device)
 
         output, v_collect = model(data)
-        transport = kinetic_lambda * sum([torch.mean(torch.abs(v) ** 2) for v in v_collect])
+        transport = kinetic_lambda * sum([torch.mean(v ** 2) for v in v_collect])
         loss = criterion(output, target) + transport
         
         optimizer.zero_grad()
@@ -81,7 +82,7 @@ def evaluation(model, dataloader, criterion, device):
             data = data.to(device)
             target = target.to(device)
 
-            output= model(data)
+            output, _ = model(data)
             loss = criterion(output, target)
 
             acc = (output.argmax(dim=1) == target).float().mean()
