@@ -68,7 +68,9 @@ def main(cfg):
     print(f'[Train] nepochs: {cfg.train_num_epochs}')
     save_name = 'checkpoint_' + cfg.dataset +'_' + cfg.model + '-' + str(datetime.date.today()) + '.pt'
     save_path = os.path.join(cfg.save_path,save_name)
+    print(f'[Train] kinetic lambda: {cfg.train_kinetic_lambda}')
     trainer(model, trainloader, device, optimizer, criterion, cfg.train_num_epochs, cfg.save_epochs, save_path, test_dataloader=testloader, kinetic_lambda = cfg.train_kinetic_lambda)
+    
     
     
 if __name__ == '__main__':
@@ -82,7 +84,7 @@ if __name__ == '__main__':
     
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["mnist","cifar10","cifar100"])
     
-    parser.add_argument("--model", type=str, default="ViT", choices=["ViT"])
+    parser.add_argument("--model", type=str, default="ViT_kinetic", choices=["ViT_kinetic"])
     parser.add_argument("--model_patch_size", type=int, default=4)
     parser.add_argument("--model_embed_dim", type=int, default=128)
     parser.add_argument("--model_num_layers", type=int, default=20)
