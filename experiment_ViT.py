@@ -66,7 +66,9 @@ def main(cfg):
         optimizer = optim.Adam(model.parameters(), lr=cfg.optim_lr)
         print(f'[Train] algorithm: {cfg.optim_alg}, learning rate: {cfg.optim_lr}')
     print(f'[Train] nepochs: {cfg.train_num_epochs}')
-    trainer(model, trainloader, device, optimizer, criterion, cfg.train_num_epochs, cfg.save_epochs, cfg.save_path, test_dataloader=testloader)
+    save_name = 'checkpoint_' + cfg.dataset +'_' + cfg.model + '-' + str(datetime.date.today()) + '.pt'
+    save_path = os.path.join(cfg.save_path,save_name)
+    trainer(model, trainloader, device, optimizer, criterion, cfg.train_num_epochs, cfg.save_epochs, save_path, test_dataloader=testloader)
     
     
 if __name__ == '__main__':
