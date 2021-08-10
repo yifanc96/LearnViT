@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+import time
 
 def trainer(model, train_dataloader, device, optimizer, criterion, nepochs, nepochs_save, save_path, test_dataloader=None, kinetic_lambda = 0.0):
     train_accs = []
@@ -48,11 +49,14 @@ def train(model, dataloader, criterion, optimizer, device, kinetic_lambda = 0.0)
         target = target.to(device)
 
         output, v_collect = model(data)
+        
+        
         transport = kinetic_lambda * sum([torch.mean(v ** 2) for v in v_collect])
         loss = criterion(output, target) + transport
         
         optimizer.zero_grad()
         loss.backward()
+        
         optimizer.step()
 
         acc = (output.argmax(dim=1) == target).float().mean()

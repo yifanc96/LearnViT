@@ -45,7 +45,6 @@ def train(model, dataloader, criterion, optimizer, device):
     for data, target in tqdm(dataloader):
         data = data.to(device)
         target = target.to(device)
-
         output= model(data)
         loss = criterion(output, target)
         
