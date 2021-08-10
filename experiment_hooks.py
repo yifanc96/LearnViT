@@ -17,7 +17,7 @@ from torch import optim
 
 from data.loader.dataloaders_LAP import dataloaders
 from models.copied_networks.ViT import VisionTransformer
-from training.trainer_ViT_kinetic import trainer
+from training.trainer_ViT_kinetic_hook import trainer
 
 import argparse
 
