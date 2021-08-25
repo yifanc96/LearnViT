@@ -26,14 +26,14 @@ def trainer(model, train_dataloader, local_rank, device, optimizer, criterion, n
             test_loss, test_accuracy = evaluation(model, test_dataloader, criterion, device)
             print(f"test acc: {test_accuracy:.4f} - test loss : {test_loss:.4f}\n")
             test_accs.append(test_accuracy)
-    if (epoch+1)%nepochs_save == 0 and local_rank == 0:
-        torch.save({
-            'epoch': epoch,
-            'model': model,
-            'train_acc': train_accs,
-            'test_acc': test_accs,
-            'lambda': kinetic_lambda
-            }, save_path) 
+        if (epoch+1)%nepochs_save == 0 and local_rank == 0:
+            # torch.save(model.state_dict(), save_path)
+            torch.save({
+                'epoch': epoch,
+                'train_acc': train_accs,
+                'test_acc': test_accs,
+                'lambda': kinetic_lambda
+                }, save_path) 
 
 
 def train(model, dataloader, criterion, optimizer, local_rank, device, v_collect, kinetic_lambda = 0.0):
