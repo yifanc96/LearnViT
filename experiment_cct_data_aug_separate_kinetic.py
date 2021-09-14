@@ -1,4 +1,4 @@
-# ResNet + Vision Transformer Block + Scale + Stochastic Depth + Kinetic Regularization
+
 # Structure
 #   - device: cpu or gpu, no distributed
 #   - recording: results/
@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from torch import optim
 
-from models.my_networks.ViT_Attn_MLP_separate import VisionTransformer
-from training.trainer_ViT_kinetic_hook_separate import trainer
+from models.copied_networks.cct import CCT
+from training.trainer_cct_kinetic_hook_separate import trainer
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data.distributed import DistributedSampler
@@ -56,7 +56,7 @@ def main(cfg):
     writer = None
     ### [Visualization]
     log_root = './tblogs/'
-    log_name = 'ViT_' + cfg.dataset + '_' + 'd' + str(cfg.model_num_layers) + 'e' + str(cfg.model_embed_dim) + 'h' + str(cfg.model_num_heads) + 'm' + str(int(cfg.model_mlp_ratio)) + 'sd' + str(cfg.train_drop_path_rate).replace(".","")
+    log_name = 'cct_' + cfg.dataset + '_' + 'd' + str(cfg.model_num_layers) + 'e' + str(cfg.model_embed_dim) + 'h' + str(cfg.model_num_heads) + 'm' + str(int(cfg.model_mlp_ratio)) + 'sd' + str(cfg.train_drop_path_rate).replace(".","")
     if cfg.train_kinetic_lambda > 0.0:
         log_name += '_k'+str(int(cfg.train_kinetic_lambda))
     if cfg.model_layerscale > 0.0:
@@ -118,8 +118,12 @@ def main(cfg):
     ### [model]
     if local_rank ==0: print('-'*50)
     if local_rank ==0: print('[Model] constructing model ' + cfg.model, '...')
-    model = VisionTransformer(img_size=datashape[-1], patch_size=cfg.model_patch_size, in_chans=datashape[1], num_classes=nclasses, embed_dim=cfg.model_embed_dim, depth=cfg.model_num_layers,num_heads=cfg.model_num_heads, mlp_ratio=cfg.model_mlp_ratio,
+    model = CCT(img_size=datashape[-1], kernel_size=cfg.model_patch_size, n_input_channels=datashape[1], num_classes=nclasses, embeding_dim=cfg.model_embed_dim, num_layers=cfg.model_num_layers,num_heads=cfg.model_num_heads, mlp_ratio=cfg.model_mlp_ratio, n_conv_layers=cfg.model_conv_layer,
                  drop_rate=cfg.train_dropout_rate, attn_drop_rate=cfg.train_attn_dropout_rate, drop_path_rate=cfg.train_drop_path_rate, layerscale = cfg.model_layerscale)
+    sequence_length=model.tokenizer.sequence_length(n_channels=datashape[1],
+                                                           height=img_size,
+                                                           width=img_size)
+    print(sequence_length)
     device = torch.device("cuda:{}".format(local_rank))
     model = model.to(device)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
@@ -159,13 +163,14 @@ if __name__ == '__main__':
     
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["mnist","cifar10","cifar100"])
     
-    parser.add_argument("--model", type=str, default="ViT_kinetic", choices=["ViT_kinetic"])
+    parser.add_argument("--model", type=str, default="cct", choices=["cct"])
     parser.add_argument("--model_patch_size", type=int, default=4)
     parser.add_argument("--model_embed_dim", type=int, default=256)
     parser.add_argument("--model_num_layers", type=int, default=24)
     parser.add_argument("--model_num_heads", type=int, default=4)
     parser.add_argument("--model_mlp_ratio", type=float, default=4.)
     parser.add_argument("--model_layerscale", type=float, default=0.0)
+    parser.add_argument("--model_conv_layer", type=int, default=2)
     
     parser.add_argument("--train_batch_size", type=int, default=100)
     parser.add_argument("--train_num_epochs", type=int, default=200)
