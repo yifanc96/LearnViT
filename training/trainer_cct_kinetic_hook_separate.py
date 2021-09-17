@@ -1,13 +1,24 @@
 import torch
 from tqdm import tqdm
 import numpy as np
+import math
 
-def trainer(model, train_dataloader, local_rank, device, optimizer, criterion, nepochs, nepochs_save, save_path, test_dataloader=None, kinetic_lambda = 0.0, writer = None):
+def adjust_learning_rate(optimizer, epoch, args):
+    lr = args.optim_lr
+    if hasattr(args, 'optim_warmup') and epoch < args.optim_warmup:
+        lr = lr / (args.optim_warmup - epoch)
+    elif not args.disable_cos:
+        lr *= 0.5 * (1. + math.cos(math.pi * (epoch - args.optim_warmup) / (args.train_num_epochs - args.optim_warmup)))
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+        
+def trainer(model, train_dataloader, local_rank, device, optimizer, criterion, nepochs, nepochs_save, save_path, test_dataloader=None, kinetic_lambda = 0.0, writer = None, args = None):
     if local_rank == 0:
         train_accs = []
         test_accs = [] if test_dataloader is not None else None
     
-    depth = model.module.classifier.depth
+    depth = model.classifier.depth if hasattr(model, 'classifier') else model.module.classifier.depth 
     v_collect = [torch.torch.empty(0).cuda(device) for i in range(2*depth)]
     # save the norm of outputs of each layer
     x_norm_collect = [torch.torch.empty(0).cuda(device) for i in range(2*depth)]
@@ -21,10 +32,15 @@ def trainer(model, train_dataloader, local_rank, device, optimizer, criterion, n
             cosine_similarity[layer_id] = inres_sim.mean()
         return fn
     for iter_i in range(depth):
-        model.module.classifier.blocks_attn[iter_i].register_forward_hook(save_outputs_hook(iter_i))
-        model.module.classifier.blocks_MLP[iter_i].register_forward_hook(save_outputs_hook(iter_i+depth))
+        if hasattr(model, 'classifier'):
+            model.classifier.blocks_attn[iter_i].register_forward_hook(save_outputs_hook(iter_i))
+            model.classifier.blocks_MLP[iter_i].register_forward_hook(save_outputs_hook(iter_i+depth))
+        else:
+            model.module.classifier.blocks_attn[iter_i].register_forward_hook(save_outputs_hook(iter_i))
+            model.module.classifier.blocks_MLP[iter_i].register_forward_hook(save_outputs_hook(iter_i+depth))
     
     for epoch in range(nepochs):
+        adjust_learning_rate(optimizer, epoch, args)
         running_loss, running_accuracy = train(model, train_dataloader, criterion, optimizer, local_rank, device, v_collect, kinetic_lambda = kinetic_lambda)
         if local_rank == 0: 
             print(f"Epoch : {epoch+1} - acc: {running_accuracy:.4f} - loss : {running_loss:.4f}\n")
@@ -105,7 +121,7 @@ def evaluation(model, dataloader, criterion, device, x_norm_collect, cosine_simi
         test_accuracy: Testing Accuracy (Float)
     '''
     model.eval()
-    depth = model.module.classifier.depth
+    depth = model.classifier.depth if hasattr(model, 'classifier') else model.module.classifier.depth
     x_norm = np.zeros(2*depth)
     cos_similarity = np.zeros(2*depth)
     with torch.no_grad():

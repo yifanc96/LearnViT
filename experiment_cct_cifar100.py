@@ -28,8 +28,8 @@ import argparse
 def set_random_seeds(random_seed=0):
 
     torch.manual_seed(random_seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
     # np.random.seed(random_seed)
     # random.seed(random_seed)
     
@@ -42,11 +42,12 @@ def main(cfg):
     print('[Device] choosing devices ...')
     if cfg.device == "cuda":
         if torch.cuda.is_available():
-            torch.distributed.init_process_group(backend="nccl")
             local_rank = cfg.local_rank
-            if local_rank ==0: print('[Device] GPU: ', torch.cuda.get_device_name(0))
             nGPUs = torch.cuda.device_count()
             if local_rank ==0: print('[Device] number of GPUs: ', nGPUs)
+            if nGPUs > 1:
+                torch.distributed.init_process_group(backend="nccl")
+            if local_rank ==0: print('[Device] GPU: ', torch.cuda.get_device_name(0))
         else:
             print('[Device] no GPU available, use cpu')
             cfg.device = "cpu"
@@ -123,10 +124,11 @@ def main(cfg):
     sequence_length=model.tokenizer.sequence_length(n_channels=datashape[1],
                                                            height=img_size,
                                                            width=img_size)
-    print(sequence_length)
+    print(f'the token length is {sequence_length}')
     device = torch.device("cuda:{}".format(local_rank))
     model = model.to(device)
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
+    if nGPUs > 1:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
 
     if local_rank ==0: print(f'[Model] patch size: {cfg.model_patch_size}, embed dim: {cfg.model_embed_dim}, depth: {cfg.model_num_layers}, num of heads: {cfg.model_num_heads}, mlp ratio: {cfg.model_mlp_ratio}, dropout rate: {cfg.train_dropout_rate}, attn_drop_rate: {cfg.train_attn_dropout_rate}')
     
@@ -150,11 +152,14 @@ def main(cfg):
                                   weight_decay=cfg.optim_wd)
         if local_rank ==0: print(f'[Train] algorithm: {cfg.optim_alg}, learning rate: {cfg.optim_lr}, weight decay is {cfg.optim_wd}')
 
+    if local_rank ==0:
+        print(f'[Train] warmup: {cfg.optim_warmup}, disable cosine rule: {cfg.disable_cos}')
+
     if local_rank ==0: print(f'[Train] nepochs: {cfg.train_num_epochs}')
     save_name = 'checkpoint_' + log_name +log_base + '.pt'
     save_path = os.path.join(cfg.save_path,save_name)
     if local_rank ==0: print(f'[Train] kinetic lambda: {cfg.train_kinetic_lambda}')
-    trainer(model, trainloader, local_rank, device, optimizer, criterion, cfg.train_num_epochs, cfg.save_epochs, save_path, test_dataloader=testloader, kinetic_lambda = cfg.train_kinetic_lambda, writer = writer)
+    trainer(model, trainloader, local_rank, device, optimizer, criterion, cfg.train_num_epochs, cfg.save_epochs, save_path, test_dataloader=testloader, kinetic_lambda = cfg.train_kinetic_lambda, writer = writer, args = cfg)
     
     
     
@@ -190,6 +195,9 @@ if __name__ == '__main__':
     parser.add_argument("--optim_alg", type=str, default="adamW", choices = ["adam","adamW"])
     parser.add_argument("--optim_wd", type=float, default=3e-2)
     parser.add_argument("--optim_lr", type=float, default=0.0005)
+    parser.add_argument('--disable-cos', action='store_true',
+                        help='disable cosine lr schedule')
+    parser.add_argument("--optim_warmup", type=int, default = 0)
     
     parser.add_argument("--save_epochs", type=int, default=100)
     parser.add_argument("--save_path", type=str, default="./results/")
