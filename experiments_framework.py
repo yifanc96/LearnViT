@@ -13,8 +13,9 @@
 import argparse
 import logging
 import os
+import numpy as np
+import random
 import torch
-import torch.nn as nn
 import datetime
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
@@ -22,10 +23,17 @@ from torch.utils.data.distributed import DistributedSampler
 from models.copied_networks.cct import CCT
 from tensorboardX import SummaryWriter
 
-def set_logger():
+def set_random_seeds(random_seed=0):
+    torch.manual_seed(random_seed)
+    torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = True
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    
+def get_logger():
     logging.getLogger().setLevel(logging.INFO)
 
-def set_parser():
+def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch framework for NNs')
     parser.add_argument("--randomseed", type=int, default=9999)
     parser.add_argument("--local_rank", type=int, default=-1,
@@ -38,7 +46,7 @@ def set_parser():
     args = parser.parse_args()
     return args
 
-def set_device(args):
+def get_device(args):
     args.num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if device == 'cpu': args.num_gpus = 0
@@ -51,7 +59,7 @@ def set_device(args):
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
     return args, device
 
-def set_SummaryWriter(args):
+def get_SummaryWriter(args):
     log_root = './tblogs/'
     log_name = ''
     date = str(datetime.datetime.now())
@@ -122,43 +130,61 @@ def get_testloader(args):
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.num_workers)
     return testloader
-    
+
+def get_model(args):
+    return None
+
+def get_loss(args):
+    return None
+
+def get_optimizer(args):
+    return None
+
+def train_one_epoch():
+    return None
+
+def evaluate():
+    return None
+
+def store_checkpoint():
+    return None
+
+def set_SummaryWriter():
+    return None
 
 if __name__ == '__main__':
     
-    ## set argument parser
-    args = set_parser()
-    print(args.dataset)
+    ## get argument parser
+    args = get_parser()
     
-    ## set device
-    args, device = set_device(args)
+    ## set random seed
+    set_random_seeds(args.randomseed)
     
-    ## set logger
-    set_logger()
+    ## get device
+    args, device = get_device(args)
+    
+    ## get logger
+    get_logger()
     log = not args.distributed or args.local_rank == 1
-    
     logging.info(f"[Device] device: {device}, num_gpus: {args.num_gpus}, distributed: {args.distributed}") # log for all devices
     
-    ## set SummaryWriter
-    writer, log_dir = set_SummaryWriter(args)
-    if log: logging.info(f"[SummaryWriter] Directory: {log_dir}")
-    
-    ## set dateset and loader
+    ## get dateset and loader
     args, augmentations = data_normalize_augment(args)
-    if log: logging.info(f"[Data] Dataset: {args.dataset}, img_size: {args.img_size}, num_class: {args.num_classes}")
+    if log: logging.info(f"[Data] Dataset: {args.dataset}, path: {args.datafolder}, img_size: {args.img_size}, num_class: {args.num_classes}")
     
     trainloader = get_trainloader(args, augmentations)
     testloader = get_testloader(args)
     if log: logging.info(f"[DataLoader] Batch size: {args.batch_size}, augmentation: {args.data_aug}, num_workers: {args.num_workers}")
     
-    ## set model
+    ## get model
     # model = CCT(img_size=args.img_size, kernel_size=cfg.model_patch_size, n_input_channels=datashape[1], num_classes=nclasses, embeding_dim=cfg.model_embed_dim, num_layers=cfg.model_num_layers,num_heads=cfg.model_num_heads, mlp_ratio=cfg.model_mlp_ratio, n_conv_layers=cfg.model_conv_layer, drop_rate=cfg.train_dropout_rate, attn_drop_rate=cfg.train_attn_dropout_rate, drop_path_rate=cfg.train_drop_path_rate, layerscale = cfg.model_layerscale, positional_embedding='learnable')
     
-    ## set optimizer, scheduler
+    ## get optimizer, scheduler
     
-    
-    
-
+    ## get SummaryWriter
+    writer, log_dir = get_SummaryWriter(args)
+    if log: logging.info(f"[SummaryWriter] Directory: {log_dir}")
+    set_SummaryWriter()
     
     
     
