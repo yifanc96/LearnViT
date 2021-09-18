@@ -30,8 +30,8 @@ def set_random_seeds(random_seed=0):
     np.random.seed(random_seed)
     random.seed(random_seed)
     
-def get_logger():
-    logging.getLogger().setLevel(logging.INFO)
+def get_logger(level = 'INFO'):
+    logging.getLogger().setLevel(logging.__dict__[level])
 
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch framework for NNs')
@@ -43,6 +43,9 @@ def get_parser():
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--data_aug", type=bool, default=True)
+    parser.add_argument("--summarywriter", type=bool, default=True)
+    parser.add_argument("--writer_logroot", type=str, default='./tblogs/')
+    parser.add_argument("--model", type=str, default='cct')
     args = parser.parse_args()
     return args
 
@@ -59,15 +62,21 @@ def get_device(args):
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
     return args, device
 
-def get_SummaryWriter(args):
-    log_root = './tblogs/'
-    log_name = ''
-    date = str(datetime.datetime.now())
-    log_base = date[date.find("-"):date.rfind(".")].replace("-", "").replace(":", "").replace(" ", "_")
-    log_dir = os.path.join(log_root, log_name, log_base)
-    if not args.distributed or args.local_rank == 1:
-        writer = SummaryWriter(log_dir)
-    return writer, log_dir
+class set_Summarywriter(object):
+    def __init__(self, args):
+        self.log_root = args.writer_logroot
+        self.log_name = ''
+        date = str(datetime.datetime.now())
+        self.log_base = date[date.find("-"):date.rfind(".")].replace("-", "").replace(":", "").replace(" ", "_")
+        self.log_dir = os.path.join(self.log_root, self.log_name, self.log_base)
+    
+    def get_writer(self, args):
+        if not args.distributed or args.local_rank == 1:
+            writer = SummaryWriter(self.log_dir)
+        return writer
+    
+    def set_writer(self, args, **kwargs):
+        return None
 
 def data_normalize_augment(args):
     DATASETS = {
@@ -131,7 +140,9 @@ def get_testloader(args):
         num_workers=args.num_workers)
     return testloader
 
+models 
 def get_model(args):
+    model = models.__dict__[args.model.upper()]
     return None
 
 def get_loss(args):
@@ -149,8 +160,6 @@ def evaluate():
 def store_checkpoint():
     return None
 
-def set_SummaryWriter():
-    return None
 
 if __name__ == '__main__':
     
@@ -177,14 +186,14 @@ if __name__ == '__main__':
     if log: logging.info(f"[DataLoader] Batch size: {args.batch_size}, augmentation: {args.data_aug}, num_workers: {args.num_workers}")
     
     ## get model
-    # model = CCT(img_size=args.img_size, kernel_size=cfg.model_patch_size, n_input_channels=datashape[1], num_classes=nclasses, embeding_dim=cfg.model_embed_dim, num_layers=cfg.model_num_layers,num_heads=cfg.model_num_heads, mlp_ratio=cfg.model_mlp_ratio, n_conv_layers=cfg.model_conv_layer, drop_rate=cfg.train_dropout_rate, attn_drop_rate=cfg.train_attn_dropout_rate, drop_path_rate=cfg.train_drop_path_rate, layerscale = cfg.model_layerscale, positional_embedding='learnable')
+    model = CCT(img_size=args.img_size, kernel_size=cfg.model_patch_size, n_input_channels=datashape[1], num_classes=nclasses, embeding_dim=cfg.model_embed_dim, num_layers=cfg.model_num_layers,num_heads=cfg.model_num_heads, mlp_ratio=cfg.model_mlp_ratio, n_conv_layers=cfg.model_conv_layer, drop_rate=cfg.train_dropout_rate, attn_drop_rate=cfg.train_attn_dropout_rate, drop_path_rate=cfg.train_drop_path_rate, layerscale = cfg.model_layerscale, positional_embedding='learnable')
     
     ## get optimizer, scheduler
     
     ## get SummaryWriter
-    writer, log_dir = get_SummaryWriter(args)
-    if log: logging.info(f"[SummaryWriter] Directory: {log_dir}")
-    set_SummaryWriter()
+    meter = set_Summarywriter(args)
+    writer = meter.get_writer(args)
+    if log: logging.info(f"[SummaryWriter] Directory: {meter.log_dir}")
     
     
     
